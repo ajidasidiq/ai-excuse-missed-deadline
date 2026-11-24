@@ -24,13 +24,18 @@ function charCount(line: string): number {
 function validate(line: string): void {
   const n = charCount(line);
   if (n < 1 || n > 200) {
-    throw new Error(`entry must be 1-200 characters, got ${n}`);
+    throw new Error(
+      `entry must be 1-200 characters, got ${n} (limit 200)`,
+    );
   }
   if (line.trim().length === 0) {
     throw new Error("entry must not be only whitespace");
   }
-  if (line.includes("\n") || line.includes("\r")) {
-    throw new Error("entry must be a single line");
+  const bad = line.includes("\n") ? "\\n" : line.includes("\r") ? "\\r" : null;
+  if (bad !== null) {
+    throw new Error(
+      `entry must be a single line, found ${bad} at ${charCount(line)} characters`,
+    );
   }
 }
 
@@ -39,9 +44,20 @@ mkdirSync("/output", { recursive: true });
 writeFileSync("/output/entry.txt", EXCUSE, "utf8");
 
 // Read back what we wrote: the file on disk must be byte-identical to the
-// validated line, with no trailing newline added.
+// validated line, with no trailing newline added. Compare byte lengths
+// first so a mismatch reports exactly how the file differs.
 const written = readFileSync("/output/entry.txt", "utf8");
-if (written !== EXCUSE) {
-  throw new Error("entry.txt on disk does not match the validated line");
+if (
+  Buffer.byteLength(written, "utf8") !== Buffer.byteLength(EXCUSE, "utf8") ||
+  written !== EXCUSE
+) {
+  throw new Error(
+    `entry.txt on disk does not match the validated line ` +
+      `(${Buffer.byteLength(written, "utf8")} bytes on disk vs ` +
+      `${Buffer.byteLength(EXCUSE, "utf8")} bytes expected)`,
+  );
 }
-console.log(`Wrote ${charCount(EXCUSE)} characters to /output/entry.txt`);
+console.log(
+  `Wrote ${charCount(EXCUSE)} characters ` +
+    `(${Buffer.byteLength(EXCUSE, "utf8")} bytes) to /output/entry.txt`,
+);
